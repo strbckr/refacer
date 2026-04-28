@@ -8,7 +8,7 @@
 
 Refacer is a locally-run, fully offline desktop tool that replaces detected faces in photos with AI-generated alternatives and strips all identifying metadata. No cloud. No API calls. Your images never leave your machine.
 
-> ⚠️ **This project is in early development.** The pipeline is not yet complete and the tool is not ready for production use. Follow along as the build progresses.
+> ⚠️ **This project is in early development.** The pipeline is not yet complete and the tool is not ready for production use. 
 
 -----
 
@@ -158,7 +158,7 @@ This project is in early development and not yet ready for contributions. Once t
 
 Refacer is built specifically for photojournalists, documentary photographers, activists, and researchers who need to protect the identities of vulnerable or at-risk individuals in images.
 
-It is not intended for any use that obscures identity for deceptive, harmful, or illegal purposes. Refacer is not intended for use on images where anonymization could obstruct a legitimate legal or journalistic investigation. 
+It is not intended for any use that obscures identity for deceptive, harmful, or illegal purposes. This software is not intended for use on images where anonymization could obstruct a legitimate legal or journalistic investigation. 
 
 -----
 
