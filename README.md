@@ -8,22 +8,23 @@
 
 Refacer is a locally-run, fully offline desktop tool that replaces detected faces in photos with AI-generated alternatives and strips all identifying metadata. No cloud. No API calls. Your images never leave your machine.
 
-> ⚠️ **This project is in early development.** The pipeline is not yet complete and the tool is not ready for production use. 
+> ⚠️ **This project is in early development.** The pipeline is not yet complete and the tool is not ready for production use.
 
 -----
 
 ## Why This Exists
 
-Photographs are testimony. They capture moments, emotions, and stories that words can’t. But sharing images of protests, demonstrations, or sensitive situations can put the people in them at risk — through facial recognition, embedded GPS coordinates, camera serial numbers, and more.
+Photographs are testimony. They capture moments, emotions, and stories that words can't. But sharing images of protests, demonstrations, or sensitive situations can put the people in them at risk — through facial recognition, embedded GPS coordinates, camera serial numbers, and more.
 
-Refacer is built on a simple premise: you shouldn’t have to choose between telling the story and protecting the people in it.
+Refacer is built on a simple premise: you shouldn't have to choose between telling the story and protecting the people in it.
 
 -----
 
 ## Features
 
 - **Batch face anonymization** — process entire folders of images in one run
-- **AI inpainting** — each detected face is replaced with a uniquely generated one; results are non-deterministic and cannot be reversed
+- **AI face replacement** — each detected face is replaced with a uniquely generated identity; results are non-deterministic and cannot be reversed
+- **Face enhancement** — replaced faces are upscaled and refined for natural, high-quality results
 - **Full metadata scrubbing** — strips all EXIF, XMP, and IPTC data including GPS coordinates, timestamps, and device identifiers
 - **Fully offline** — no network calls at runtime, ever
 - **CPU-first** — runs on modest hardware without a discrete GPU
@@ -37,10 +38,10 @@ Refacer is built on a simple premise: you shouldn’t have to choose between tel
 Refacer runs each image through a modular pipeline:
 
 ```
-Input Folder → Face Detection → Mask Generation → AI Inpainting → Composite → Metadata Scrub → Output Folder
+Input Folder → Face Detection → Identity Generation → Face Swap → Enhancement → Composite → Metadata Scrub → Output Folder
 ```
 
-Each face is processed independently with no seeding or shared state, ensuring unique replacements across every run.
+Each face receives a randomly generated embedding with no seeding or shared state, ensuring unique replacements across every run.
 
 -----
 
@@ -76,7 +77,7 @@ cd refacer
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-python scripts/download_models.py  # downloads LaMa model weights (~200MB)
+python scripts/download_models.py  # downloads inswapper and GFPGAN model weights (~500MB)
 ```
 
 -----
@@ -111,13 +112,14 @@ python -m refacer --input /path/to/photos --output /path/to/output
 
 ## Technical Stack
 
-|Component         |Library                         |
-|------------------|--------------------------------|
-|Face Detection    |InsightFace (RetinaFace backend)|
-|Inpainting        |LaMa via lama-cleaner           |
-|Metadata Scrubbing|exiftool                        |
-|UI                |Gradio (local only)             |
-|Inference         |onnxruntime (CPU)               |
+|Component         |Library                              |
+|------------------|-------------------------------------|
+|Face Detection    |InsightFace (buffalo_l backend)      |
+|Face Replacement  |inswapper_128 (random identity swap) |
+|Face Enhancement  |GFPGAN v1.4                          |
+|Metadata Scrubbing|exiftool                             |
+|UI                |Gradio (local only)                  |
+|Inference         |onnxruntime (CPU)                    |
 
 -----
 
@@ -126,7 +128,7 @@ python -m refacer --input /path/to/photos --output /path/to/output
 - Refacer is **fully air-gapped at runtime** — no telemetry, no model API calls, no external connections of any kind
 - All processing happens on your local machine
 - Output images are verified to contain zero metadata fields before being written
-- Inpainting is intentionally non-deterministic — reversal attacks are infeasible by design
+- Face replacement uses randomly generated identity embeddings — reversal attacks are infeasible by design
 
 -----
 
@@ -135,15 +137,14 @@ python -m refacer --input /path/to/photos --output /path/to/output
 - Very small faces in dense crowd shots may be missed or flagged as low-confidence
 - Extreme profile angles and heavily occluded faces (e.g. surgical masks + sunglasses) may not be detected reliably
 - Processing time varies by hardware — benchmarks will be published at v0.1.0
-- LaMa produces fast, painterly results; output may look edited under close inspection. A Stable Diffusion inpainting upgrade path is planned for a future release
 
 -----
 
 ## Roadmap
 
-- [ ] v0.1.0 — core pipeline (detection, inpainting, metadata scrub, Gradio UI)
+- [ ] v0.1.0 — core pipeline (detection, face replacement, enhancement, metadata scrub, Gradio UI)
 - [ ] v0.2.0 — confidence threshold UI controls, manual review queue for low-confidence detections
-- [ ] v0.3.0 — optional SD inpainting upgrade path for higher realism
+- [ ] v0.3.0 — higher-realism enhancement options
 - [ ] v1.0.0 — packaged installers for macOS, Linux, and Windows
 
 -----
@@ -158,7 +159,7 @@ This project is in early development and not yet ready for contributions. Once t
 
 Refacer is built specifically for photojournalists, documentary photographers, activists, and researchers who need to protect the identities of vulnerable or at-risk individuals in images.
 
-It is not intended for any use that obscures identity for deceptive, harmful, or illegal purposes. This software is not intended for use on images where anonymization could obstruct a legitimate legal or journalistic investigation. 
+It is not intended for any use that obscures identity for deceptive, harmful, or illegal purposes. This software is not intended for use on images where anonymization could obstruct a legitimate legal or journalistic investigation.
 
 -----
 
