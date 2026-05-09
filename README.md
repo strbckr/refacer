@@ -43,7 +43,38 @@ Each face receives a randomly generated embedding with no seeding or shared stat
 
 -----
 
-## Installation
+## Docker (recommended)
+
+Docker is the easiest way to run Refacer — no Python environment or system dependency setup required.
+
+### Prerequisites
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (macOS, Linux, Windows)
+- `inswapper_128.onnx` downloaded manually from [Google Drive](https://drive.google.com/file/d/1krOLgjW2tAPaqV-Bw4YALz0xT5zlb5HF/view) and placed in a `models/` directory inside the repo
+
+### Run
+
+```bash
+git clone https://github.com/strbck/refacer.git
+cd refacer
+mkdir -p models input output
+# Place inswapper_128.onnx in models/ before continuing
+docker compose up --build
+```
+
+The first build takes several minutes — it installs dependencies and pre-downloads the GFPGAN and InsightFace weights into the image. Subsequent starts are fast.
+
+Open [http://localhost:7860](http://localhost:7860) in your browser. Drop images into the UI, click **Run**, and find anonymized results in your local `output/` folder.
+
+**CLI via Docker:**
+
+```bash
+docker compose run --rm refacer python -m refacer --input /app/input --output /app/output
+```
+
+-----
+
+## Installation (manual)
 
 ### Prerequisites
 

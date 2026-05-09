@@ -168,9 +168,12 @@ All processing happens locally — your images never leave this machine.
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
+    import os
+    # Bind to all interfaces when running inside Docker; localhost otherwise.
+    host = "0.0.0.0" if os.environ.get("REFACER_DOCKER") else "127.0.0.1"
     demo.launch(
-        server_name="127.0.0.1",
+        server_name=host,
         server_port=7860,
-        inbrowser=True,
+        inbrowser=not os.environ.get("REFACER_DOCKER"),
         share=False,       # never share externally — offline tool
     )

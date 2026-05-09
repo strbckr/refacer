@@ -1,0 +1,12 @@
+.git/
+.claude/
+venv/
+models/
+input/
+output/
+gfpgan/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+.envrc
