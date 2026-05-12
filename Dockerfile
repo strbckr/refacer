@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libimage-exiftool-perl \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
+WORKDIR /refacer
 
 # Install Python dependencies.
 # torch is CPU-only — the default PyPI wheel includes CUDA and is ~800 MB larger.
@@ -34,7 +34,7 @@ EOF
 
 # models/ is mounted at runtime (contains inswapper_128.onnx).
 # input/ and output/ are mounted for image I/O.
-VOLUME ["/app/models", "/app/input", "/app/output"]
+VOLUME ["/refacer/models", "/refacer/input", "/refacer/output"]
 
 EXPOSE 7860
 
