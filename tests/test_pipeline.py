@@ -77,3 +77,26 @@ class TestRunStatsFromResults:
         # total is passed explicitly so callers can set it from count_images()
         stats = RunStats.from_results(total=5, results=[])
         assert stats.total == 5
+
+
+class TestCountImages:
+    def test_counts_supported_extensions(self, tmp_path):
+        (tmp_path / "a.jpg").touch()
+        (tmp_path / "b.png").touch()
+        (tmp_path / "c.webp").touch()
+        (tmp_path / "d.txt").touch()   # excluded
+        assert count_images(str(tmp_path)) == 3
+
+    def test_case_insensitive(self, tmp_path):
+        (tmp_path / "a.JPG").touch()
+        (tmp_path / "b.JPEG").touch()
+        (tmp_path / "c.PNG").touch()
+        assert count_images(str(tmp_path)) == 3
+
+    def test_empty_directory(self, tmp_path):
+        assert count_images(str(tmp_path)) == 0
+
+    def test_no_supported_files(self, tmp_path):
+        (tmp_path / "readme.txt").touch()
+        (tmp_path / "data.csv").touch()
+        assert count_images(str(tmp_path)) == 0

@@ -167,6 +167,11 @@ def _collect_images(input_dir: str) -> List[str]:
     )
 
 
+def count_images(input_dir: str) -> int:
+    """Return the number of supported images in *input_dir*."""
+    return len(_collect_images(input_dir))
+
+
 def _scrub_verify_finalize(
     temp_path: str,
     final_path: str,
