@@ -13,6 +13,7 @@ All processing is fully offline — no network calls are made at runtime.
 import logging
 import os
 import shutil
+import subprocess
 import sys
 
 # ui/ is one level below the repo root; the package lives at the repo root,
@@ -27,7 +28,7 @@ import gradio as gr
 
 from refacer import metadata
 from refacer.models import load_models
-from refacer.pipeline import SUPPORTED_EXTENSIONS, RunStats, run
+from refacer.pipeline import SUPPORTED_EXTENSIONS, RunStats, count_images, run
 
 logging.basicConfig(
     level=logging.INFO,
@@ -61,16 +62,20 @@ except (FileNotFoundError, ImportError) as exc:
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _format_stats(stats: RunStats) -> str:
-    """Turn a RunStats into a readable log string for the UI."""
-    lines = [str(stats)]
-    for img_result in stats.image_results:
-        lines.append(img_result.summary())
-    return "\n".join(lines)
+def _build_log(results: list) -> str:
+    return "\n".join(r.summary() for r in results)
+
+
+def _warning_count(results: list) -> int:
+    return sum(
+        1 for r in results
+        if r.faces_failed > 0
+        or not r.enhancement_ok
+        or (metadata.is_available() and r.success and not r.metadata_scrubbed)
+    )
 
 
 def _list_output_images() -> list[str]:
-    """Return paths of all images currently in the output directory."""
     return sorted(
         os.path.join(OUTPUT_DIR, f)
         for f in os.listdir(OUTPUT_DIR)
@@ -78,38 +83,65 @@ def _list_output_images() -> list[str]:
     )
 
 
-# ---------------------------------------------------------------------------
-# Core processing function
-# ---------------------------------------------------------------------------
-
-def process(input_files, progress=gr.Progress(track_tqdm=True)):
-    """
-    Called by Gradio when the user clicks Run.
-
-    Accepts a list of uploaded file paths from gr.File, copies them into
-    INPUT_DIR, runs the pipeline, and returns (log_text, output_gallery).
-    """
-    if not input_files:
-        return "No files uploaded.", []
-
-    # Clear input dir and copy uploaded files in
+def _clear_and_copy(input_files) -> None:
     for f in os.listdir(INPUT_DIR):
         if f.lower().endswith(SUPPORTED_EXTENSIONS):
             os.remove(os.path.join(INPUT_DIR, f))
-
     for upload in input_files:
         src = upload if isinstance(upload, str) else upload.name
         dest = os.path.join(INPUT_DIR, os.path.basename(src))
         shutil.copy2(src, dest)
 
-    # Run pipeline
-    stats = run(input_dir=INPUT_DIR, output_dir=OUTPUT_DIR, models=MODELS)
-    log = _format_stats(stats)
 
-    # Collect output images for gallery
-    output_images = _list_output_images()
+# ---------------------------------------------------------------------------
+# Core processing function
+# ---------------------------------------------------------------------------
 
-    return log, output_images
+def process(input_files, progress=gr.Progress()):
+    if not input_files:
+        yield "No files uploaded.", [], 0, 0, 0
+        return
+
+    _clear_and_copy(input_files)
+
+    total = count_images(INPUT_DIR)
+    if total == 0:
+        yield "No supported images found in upload.", [], 0, 0, 0
+        return
+
+    results = []
+    for img_result in run(INPUT_DIR, OUTPUT_DIR, MODELS):
+        results.append(img_result)
+        progress(len(results) / total)
+        yield (
+            _build_log(results),
+            _list_output_images(),
+            len(results),
+            sum(r.faces_swapped for r in results),
+            _warning_count(results),
+        )
+
+    stats = RunStats.from_results(total, results)
+    yield (
+        _build_log(results) + "\n" + str(stats),
+        _list_output_images(),
+        total,
+        stats.faces_swapped,
+        _warning_count(results),
+    )
+
+
+def clear_inputs():
+    return None, "", [], 0, 0, 0
+
+
+def open_output_folder():
+    if sys.platform == "darwin":
+        subprocess.run(["open", OUTPUT_DIR], check=False)
+    elif sys.platform.startswith("linux"):
+        subprocess.run(["xdg-open", OUTPUT_DIR], check=False)
+    else:
+        os.startfile(OUTPUT_DIR)
 
 
 # ---------------------------------------------------------------------------
@@ -131,37 +163,56 @@ with gr.Blocks(title="Refacer", theme=gr.themes.Base()) as demo:
 All processing happens locally — your images never leave this machine.
         """
     )
-
     gr.Markdown(_EXIFTOOL_NOTE)
 
-    with gr.Row():
-        with gr.Column(scale=1):
-            file_input = gr.File(
-                label="Input images",
-                file_count="multiple",
-                file_types=list(SUPPORTED_EXTENSIONS),
-            )
+    # ── Panel 1: Upload ────────────────────────────────────────────────────
+    with gr.Group():
+        gr.Markdown("### 1 · Upload")
+        file_input = gr.File(
+            label="Input images",
+            file_count="multiple",
+            file_types=list(SUPPORTED_EXTENSIONS),
+        )
+        with gr.Row():
             run_btn = gr.Button("Run", variant="primary")
+            clear_btn = gr.Button("Clear")
 
-        with gr.Column(scale=2):
-            log_output = gr.Textbox(
-                label="Processing log",
-                lines=18,
-                interactive=False,
-            )
+    # ── Panel 2: Progress ──────────────────────────────────────────────────
+    with gr.Group():
+        gr.Markdown("### 2 · Progress")
+        log_output = gr.Textbox(
+            label="Processing log",
+            lines=10,
+            interactive=False,
+            autoscroll=True,
+        )
+        with gr.Row():
+            done_num = gr.Number(label="Done", value=0, interactive=False)
+            faces_num = gr.Number(label="Faces Swapped", value=0, interactive=False)
+            warnings_num = gr.Number(label="Warnings", value=0, interactive=False)
 
-    gallery = gr.Gallery(
-        label="Output images",
-        columns=4,
-        object_fit="contain",
-        height="auto",
-    )
+    # ── Panel 3: Output ────────────────────────────────────────────────────
+    with gr.Group():
+        gr.Markdown("### 3 · Output")
+        gallery = gr.Gallery(
+            label="Output images",
+            columns=4,
+            object_fit="contain",
+            height="auto",
+        )
+        open_btn = gr.Button("Open output folder")
 
     run_btn.click(
         fn=process,
         inputs=[file_input],
-        outputs=[log_output, gallery],
+        outputs=[log_output, gallery, done_num, faces_num, warnings_num],
     )
+    clear_btn.click(
+        fn=clear_inputs,
+        inputs=[],
+        outputs=[file_input, log_output, gallery, done_num, faces_num, warnings_num],
+    )
+    open_btn.click(fn=open_output_folder, inputs=[], outputs=[])
 
 # ---------------------------------------------------------------------------
 # Entry point
