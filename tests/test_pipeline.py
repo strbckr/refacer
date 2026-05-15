@@ -7,7 +7,7 @@ from refacer.pipeline import (
     FaceResult,
     ImageResult,
     RunStats,
-    # count_images,  # TODO: will be imported in Task 3
+    count_images,
     run,
 )
 
